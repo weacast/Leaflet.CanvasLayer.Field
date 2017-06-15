@@ -11,6 +11,7 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
     initialize: function (scalarField, options) {
         L.CanvasLayer.Field.prototype.initialize.call(this, scalarField, options);
         L.Util.setOptions(this, options);
+        this.image = null
     },
 
     _defaultColorScale: function () {
@@ -42,35 +43,45 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
         this.needRedraw(); // TODO check spurious redraw (e.g. hide/show without moving map)
     },
 
-    /**
-     * Draws the field in an ImageData and applying it with putImageData.
-     * Used as a reference: http://geoexamples.com/d3-raster-tools-docs/code_samples/raster-pixels-page.html
-     */
-    _drawImage: function () {
+    setData: function (field) {
+        L.CanvasLayer.Field.prototype.setData.call(this, field);
         let ctx = this._getDrawingContext();
         // Prepare an image containing the data grid as colors
         let width = this._field.nCols;
         let height = this._field.nRows;
         let img = ctx.createImageData(width, height);
         this._prepareImageIn(img.data, width, height);
-        // The draw this image at the right place
+        // To draw the image we need to convert it to a bitmap
+        createImageBitmap(img)
+        .then(function(response) {
+            this.image = response;
+        }.bind(this));
+    },
+
+    /**
+     * Draws the field in an ImageData and applying it with putImageData.
+     * Used as a reference: http://geoexamples.com/d3-raster-tools-docs/code_samples/raster-pixels-page.html
+     */
+    _drawImage: function () {
+        // while the image is not ready
+        if (!this.image) return;
+
+        // Draw the image at the right place
         let topleft = this._field._lonLatAtIndexes(0,0);
         let topright = this._field._lonLatAtIndexes(this._field.nCols-1,0);
         let bottomleft = this._field._lonLatAtIndexes(0,this._field.nRows-1);
+        // Lat has to be first for leaflet
         topleft.reverse();
         topright.reverse();
         bottomleft.reverse();
+        // Find pixel coordinates in canvas where the image has to be put
         topleft = this._map.latLngToContainerPoint(topleft);
         topright = this._map.latLngToContainerPoint(topright);
         bottomleft = this._map.latLngToContainerPoint(bottomleft);
         // And let the browser scale it for us and perform interpolation
         let screenWidth = topright.x - topleft.x;
         let screenHeight = bottomleft.y - topleft.y;
-        // to draw the image scaled we first need to convert it to a bitmap
-        createImageBitmap(img)
-        .then(function(response) {
-            ctx.drawImage(response, topleft.x, topleft.y, screenWidth, screenHeight);
-        });
+        this._getDrawingContext().drawImage(this.image, topleft.x, topleft.y, screenWidth, screenHeight);
     },
 
     /**
