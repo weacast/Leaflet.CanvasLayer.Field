@@ -45,7 +45,7 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
 
     setData: function (field) {
         L.CanvasLayer.Field.prototype.setData.call(this, field);
-        let ctx = this._getDrawingContext();
+        let ctx = this._canvas.getContext('2d');
         // Prepare an image containing the data grid as colors
         let width = this._field.nCols;
         let height = this._field.nRows;
@@ -66,6 +66,7 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
         // while the image is not ready
         if (!this.image) return;
 
+        let ctx = this._getDrawingContext();
         // Draw the image at the right place
         let topleft = this._field._lonLatAtIndexes(0,0);
         let topright = this._field._lonLatAtIndexes(this._field.nCols-1,0);
@@ -81,7 +82,21 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
         // And let the browser scale it for us and perform interpolation
         let screenWidth = topright.x - topleft.x;
         let screenHeight = bottomleft.y - topleft.y;
-        this._getDrawingContext().drawImage(this.image, topleft.x, topleft.y, screenWidth, screenHeight);
+        let width = this._field.nCols;
+        let height = this._field.nRows;
+        let center = {
+            x: topleft.x + 0.5 * screenWidth,
+            y: topleft.y + 0.5 * screenHeight
+        }
+        let scale = {
+            x: screenWidth/width,
+            y: screenHeight/height
+        }
+        ctx.save();
+        ctx.translate(topleft.x + 0.5 * screenWidth, topleft.y + 0.5 * screenHeight);
+        ctx.scale(scale.x, scale.y);
+        ctx.drawImage(this.image, -0.5 * width, -0.5 * height);
+        ctx.restore();
     },
 
     /**
