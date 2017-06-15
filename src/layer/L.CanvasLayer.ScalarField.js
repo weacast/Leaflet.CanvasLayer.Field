@@ -48,14 +48,29 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
      */
     _drawImage: function () {
         let ctx = this._getDrawingContext();
-        let width = this._canvas.width;
-        let height = this._canvas.height;
-
+        // Prepare an image containing the data grid as colors
+        let width = this._field.nCols;
+        let height = this._field.nRows;
         let img = ctx.createImageData(width, height);
-        let data = img.data;
-
-        this._prepareImageIn(data, width, height);
-        ctx.putImageData(img, 0, 0);
+        this._prepareImageIn(img.data, width, height);
+        // The draw this image at the right place
+        let topleft = this._field._lonLatAtIndexes(0,0);
+        let topright = this._field._lonLatAtIndexes(this._field.nCols-1,0);
+        let bottomleft = this._field._lonLatAtIndexes(0,this._field.nRows-1);
+        topleft.reverse();
+        topright.reverse();
+        bottomleft.reverse();
+        topleft = this._map.latLngToContainerPoint(topleft);
+        topright = this._map.latLngToContainerPoint(topright);
+        bottomleft = this._map.latLngToContainerPoint(bottomleft);
+        // And let the browser scale it for us and perform interpolation
+        let screenWidth = topright.x - topleft.x;
+        let screenHeight = bottomleft.y - topleft.y;
+        // to draw the image scaled we first need to convert it to a bitmap
+        createImageBitmap(img)
+        .then(function(response) {
+            ctx.drawImage(response, topleft.x, topleft.y, screenWidth, screenHeight);
+        });
     },
 
     /**
@@ -67,16 +82,10 @@ L.CanvasLayer.ScalarField = L.CanvasLayer.Field.extend({
      * @param {Number} height
      */
     _prepareImageIn(data, width, height) {
-        let f = (this.options.interpolate) ? 'interpolatedValueAt' : 'valueAt';
-
         let pos = 0;
         for (let j = 0; j < height; j++) {
             for (let i = 0; i < width; i++) {
-                let pointCoords = this._map.containerPointToLatLng([i, j]);
-                let lon = pointCoords.lng;
-                let lat = pointCoords.lat;
-
-                let v = this._field[f](lon, lat); // 'valueAt' | 'interpolatedValueAt' || TODO check some 'artifacts'
+                let v = this._field._valueAtIndexes(i,j);
                 if (v !== null) {
                     let color = this._getColorFor(v);
                     let [R, G, B, A] = color.rgba();
