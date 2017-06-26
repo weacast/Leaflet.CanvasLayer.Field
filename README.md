@@ -1,3 +1,5 @@
+> **This fork is used to publish a custom package for Weacast while waiting for pull requests to be integrated to the upstream.**
+
 # Leaflet.CanvasLayer.Field
 A plugin for [LeafletJS](http://www.leafletjs.com) that adds layers to visualize fields (*aka* **Rasters**) from ASCIIGrid or GeoTIFF files (EPSG:4326). 
 
